@@ -19,18 +19,26 @@ class Streak
   # is still time today for the streak to be extended
   attr_reader :except_today
 
+  attr_reader :except
+
   # Creates a new Streak
   # 
   # @param [ActiveRecord::Base] instance an ActiveRecord object instance
   # @param [Symbol] association a key representing the ActiveRecord association on the instance
   # @param [Symbol] column a key representing the column on the association that you want to calculate the streak against
   # @param [Boolean] except_today whether to include today in the streak length calculation or not. If this is true, then you are assuming there is still time today for the streak to be extended
-  def initialize(instance, association, column, except_today: false)
+  # @param [Array] except whether to include the specified days in the streak length calculation or not.  eg: ['sat', 'sun']
+
+  def initialize(instance, association, column, except_today: false, except: [])
     @instance = instance
     @association = association
     @column = column
     # Don't penalize the current day being absent when determining streaks
     @except_today = except_today
+    @except = []
+    except.each do |day|
+      @except << day.to_date.wday
+    end
   end
 
   # Calculate the length of this calendar day streak
@@ -85,7 +93,9 @@ class Streak
       elsif days[i-1] == (day+1.day)
         # push to existing streak
         streak << day
-
+      elsif (except.present? && ((streak.last - 1.day).wday in except)) # included in 'exclusion' days
+        # push to existing streak
+        streak << (streak.last - 1.day)
       # streak was broken
       else
         # push our current streak
